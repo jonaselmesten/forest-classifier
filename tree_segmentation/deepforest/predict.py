@@ -3,21 +3,19 @@
 This module consists of predict utility function for the deepforest
 class
 """
-import cv2
 import keras
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-# Retinanet-viz
-from tree_segmentation.deepforest.keras_retinanet.utils import image as keras_retinanet_image
-from tree_segmentation.deepforest.keras_retinanet.utils.visualization import draw_detections
+from tree_segmentation.keras_retinanet.utils import image as keras_retinanet_image
+from tree_segmentation.keras_retinanet.utils.visualization import draw_detections
 
 def predict_image(model,
                   image_path=None,
                   raw_image=None,
                   score_threshold=0.05,
-                  max_detections=200,
+                  max_detections=1000,
                   return_plot=True,
                   classes={"0": "Tree"},
                   color=None):
@@ -96,12 +94,12 @@ def predict_image(model,
         np.expand_dims(image_scores, axis=1),
         np.expand_dims(image_labels, axis=1)
     ],
-                                      axis=1)
+        axis=1)
 
     df = pd.DataFrame(image_detections,
                       columns=["xmin", "ymin", "xmax", "ymax", "score", "label"])
 
-    # Change numberic class into string label
+    # Change numeric class into string label
     df.label = df.label.astype(int)
     df.label = df.label.apply(lambda x: classes[x])
 
@@ -110,9 +108,8 @@ def predict_image(model,
                         image_boxes,
                         image_scores,
                         image_labels,
-                        label_to_name=None,
-                        score_threshold=score_threshold,
-                        color=color)
+                        label_to_name=tree_to_class,
+                        score_threshold=score_threshold)
         return numpy_image
     else:
         return df

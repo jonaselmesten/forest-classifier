@@ -2,7 +2,6 @@ import os
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
 _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-print("ROOT:", _PROJECT_ROOT)
 
 def get_data(path):
     return os.path.join(_ROOT, '../data', path)

@@ -14,33 +14,23 @@ import keras.preprocessing.image
 import tensorflow as tf
 
 # Retinanet
-from tree_segmentation.deepforest.keras_retinanet import layers
-from tree_segmentation.deepforest.keras_retinanet import losses
-from tree_segmentation.deepforest.keras_retinanet import models
-from tree_segmentation.deepforest.keras_retinanet.callbacks import RedirectModel
-from tree_segmentation.deepforest.keras_retinanet.callbacks.eval import Evaluate
-from tree_segmentation.deepforest.keras_retinanet.models.retinanet import retinanet_bbox
-from tree_segmentation.deepforest.keras_retinanet.preprocessing.csv_generator import CSVGenerator
-from tree_segmentation.deepforest.keras_retinanet.utils.anchors import make_shapes_callback
-from tree_segmentation.deepforest.keras_retinanet.utils.config import read_config_file, parse_anchor_parameters
-from tree_segmentation.deepforest.keras_retinanet.utils.keras_version import check_keras_version
-from tree_segmentation.deepforest.keras_retinanet.utils.model import freeze as freeze_model
-from tree_segmentation.deepforest.keras_retinanet.utils.transform import random_transform_generator
-from tree_segmentation.deepforest.keras_retinanet.utils.image import random_visual_effect_generator
-from tree_segmentation.deepforest.keras_retinanet.utils.gpu import setup_gpu
+from folders import get_tsm
+from tree_segmentation.keras_retinanet import layers
+from tree_segmentation.keras_retinanet import losses
+from tree_segmentation.keras_retinanet import models
+from tree_segmentation.keras_retinanet.callbacks import RedirectModel
+from tree_segmentation.keras_retinanet.callbacks.eval import Evaluate
+from tree_segmentation.keras_retinanet.models.retinanet import retinanet_bbox
+from tree_segmentation.keras_retinanet.preprocessing.csv_generator import CSVGenerator
+from tree_segmentation.keras_retinanet.utils.anchors import make_shapes_callback
+from tree_segmentation.keras_retinanet.utils.config import read_config_file, parse_anchor_parameters
+from tree_segmentation.keras_retinanet.utils.model import freeze as freeze_model
+from tree_segmentation.keras_retinanet.utils.transform import random_transform_generator
+from tree_segmentation.keras_retinanet.utils.image import random_visual_effect_generator
+from tree_segmentation.keras_retinanet.utils.gpu import setup_gpu
+
 
 from tree_segmentation.deepforest import tfrecords
-
-
-def makedirs(path):
-    # Intended behavior: try to create the directory,
-    # pass if the directory exists already, fails otherwise.
-    # Meant for Python 2.7/3.n compatibility.
-    try:
-        os.makedirs(path)
-    except OSError:
-        if not os.path.isdir(path):
-            raise
 
 
 def model_with_weights(model, weights, skip_mismatch):
@@ -141,7 +131,7 @@ def create_models(backbone_retinanet,
             'regression': losses.smooth_l1(),
             'classification': losses.focal()
         },
-                               optimizer=keras.optimizers.adam(lr=lr, clipnorm=0.001))
+                               optimizer=keras.optimizers.Adam(lr=lr, clipnorm=0.001))
 
     return model, training_model, prediction_model
 
@@ -240,14 +230,12 @@ def create_generators(args, preprocess_image):
         visual_effect_generator = None
     if args.dataset_type == 'csv':
         train_generator = CSVGenerator(args.annotations,
-                                       args.classes,
                                        transform_generator=transform_generator,
                                        visual_effect_generator=visual_effect_generator,
                                        **common_args)
 
         if args.val_annotations:
             validation_generator = CSVGenerator(args.val_annotations,
-                                                args.classes,
                                                 shuffle_groups=False,
                                                 **common_args)
         else:
@@ -306,8 +294,8 @@ def parse_args(args):
     csv_parser = subparsers.add_parser('csv')
     csv_parser.add_argument('annotations',
                             help='Path to CSV file containing annotations for training.')
-    csv_parser.add_argument('classes',
-                            help='Path to a CSV file containing class label mapping.')
+    # csv_parser.add_argument('classes',
+                            # help='Path to a CSV file containing class label mapping.')
     csv_parser.add_argument(
         '--val-annotations',
         help='Path to CSV file containing annotations for validation (optional).')
@@ -435,122 +423,7 @@ def main(forest_object,
         list_of_tfrecords: list of tfrecords to parse
         input_type: "fit_generator" or "tfrecord" input type
     """
-    # parse arguments
-    if args is None:
-        args = sys.argv[1:]
-    args = parse_args(args)
 
-    # create object that stores backbone information
-    backbone = models.backbone(args.backbone)
-
-    # make sure keras is the minimum required version
-    check_keras_version()
-
-    # optionally choose specific GPU
-    if args.gpu:
-        setup_gpu(args.gpu)
-
-    # optionally load config parameters
-    if args.config:
-        args.config = read_config_file(args.config)
-
-    # data input
-    if input_type == "fit_generator":
-        # create the generators
-        train_generator, validation_generator = create_generators(
-            args, backbone.preprocess_image)
-
-        # placeholder target tensor for creating models
-        targets = None
-
-    elif input_type == "tfrecord":
-        # Create tensorflow iterators
-        iterator = tfrecords.create_dataset(list_of_tfrecords, args.batch_size)
-        next_element = iterator.get_next()
-
-        # Split into inputs and targets
-        inputs = next_element[0]
-        targets = [next_element[1], next_element[2]]
-
-        validation_generator = None
-
-    else:
-        raise ValueError("{} input type is invalid. Only 'tfrecord' or 'for_generator' "
-                         "input types are accepted for model training".format(input_type))
-
-    # create the model
-    if args.snapshot is not None:
-        print('Loading model, this may take a second...')
-        model = models.load_model(args.snapshot, backbone_name=args.backbone)
-        training_model = model
-        anchor_params = None
-        if args.config and 'anchor_parameters' in args.config:
-            anchor_params = parse_anchor_parameters(args.config)
-        prediction_model = retinanet_bbox(model=model, anchor_params=anchor_params)
-    else:
-        weights = args.weights
-        # default to imagenet if nothing else is specified
-        if weights is None and args.imagenet_weights:
-            weights = backbone.download_imagenet()
-
-        print('Creating model, this may take a second...')
-        if input_type == "fit_generator":
-            num_of_classes = train_generator.num_classes()
-        else:
-            # Add background class
-            num_of_classes = len(forest_object.labels.keys())
-
-        model, training_model, prediction_model = create_models(
-            backbone_retinanet=backbone.retinanet,
-            num_classes=num_of_classes,
-            weights=weights,
-            multi_gpu=args.multi_gpu,
-            freeze_backbone=args.freeze_backbone,
-            lr=args.lr,
-            config=args.config,
-            targets=targets,
-            freeze_layers=args.freeze_layers)
-
-    # print model summary
-    print(model.summary())
-
-    # this lets the generator compute backbone layer shapes using the actual backbone model
-    if 'vgg' in args.backbone or 'densenet' in args.backbone:
-        train_generator.compute_shapes = make_shapes_callback(model)
-        if validation_generator:
-            validation_generator.compute_shapes = train_generator.compute_shapes
-
-    # create the callbacks
-    callbacks = create_callbacks(model, training_model, prediction_model,
-                                 validation_generator, args, comet_experiment)
-
-    if not args.compute_val_loss:
-        validation_generator = None
-
-    # start training
-    if input_type == "fit_generator":
-        history = training_model.fit_generator(generator=train_generator,
-                                               steps_per_epoch=args.steps,
-                                               epochs=args.epochs,
-                                               verbose=1,
-                                               callbacks=callbacks,
-                                               workers=args.workers,
-                                               use_multiprocessing=args.multiprocessing,
-                                               max_queue_size=args.max_queue_size,
-                                               validation_data=validation_generator)
-    elif input_type == "tfrecord":
-
-        # Fit model
-        history = training_model.fit(x=inputs,
-                                     steps_per_epoch=args.steps,
-                                     epochs=args.epochs,
-                                     callbacks=callbacks)
-    else:
-        raise ValueError("{} input type is invalid. Only 'tfrecord' or 'for_generator' "
-                         "input types are accepted for model training".format(input_type))
-
-    # Assign history to deepforest model class
-    forest_object.history = history
 
     # return trained model
     return model, prediction_model, training_model

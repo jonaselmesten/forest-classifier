@@ -2,12 +2,22 @@
 
 This module holds the deepforest class for model building and training
 """
-import csv
+import ntpath
 import os
 import warnings
 
 from PIL import Image
+from tensorflow_core.python.framework.config import set_memory_growth
 
+from tree_segmentation.keras_retinanet import models
+from tree_segmentation.keras_retinanet.models import convert_model
+from tree_segmentation.keras_retinanet.models.retinanet import retinanet_bbox
+from tree_segmentation.keras_retinanet.preprocessing.csv_generator import CSVGenerator
+from tree_segmentation.keras_retinanet.utils.anchors import make_shapes_callback
+from tree_segmentation.keras_retinanet.utils.config import read_config_file, parse_anchor_parameters
+from tree_segmentation.keras_retinanet.utils.eval import evaluate
+from tree_segmentation.keras_retinanet.utils.gpu import setup_gpu
+from tree_segmentation.keras_retinanet.utils.visualization import draw_box
 
 with warnings.catch_warnings():
     # Suppress some of the verbose tensorboard warnings,
@@ -20,21 +30,29 @@ import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 
-from tree_segmentation.deepforest import utilities, get_data, get_model, get_model_dir
+from tree_segmentation.deepforest import utilities, get_model, get_model_dir, tfrecords
 from tree_segmentation.deepforest import predict
 from tree_segmentation.deepforest import preprocess
-from tree_segmentation.deepforest.retinanet_train import main as retinanet_train
+from tree_segmentation.deepforest.retinanet_train import create_generators, create_models, \
+    create_callbacks
 from tree_segmentation.deepforest.retinanet_train import parse_args
 
-from tree_segmentation.deepforest.keras_retinanet import models
-from tree_segmentation.deepforest.keras_retinanet.models import convert_model
-from tree_segmentation.deepforest.keras_retinanet.bin.train import create_models
-from tree_segmentation.deepforest.keras_retinanet.preprocessing.csv_generator import CSVGenerator, _read_classes
-from tree_segmentation.deepforest.keras_retinanet.utils.eval import evaluate
-from tree_segmentation.deepforest.keras_retinanet.utils.visualization import draw_box
+#physical_devices = tf.config.experimental.list_physical_devices("GPU")
+#set_memory_growth(device=physical_devices[0], enable=True)
 
 
-class deepforest:
+def smooth_curve(points, factor=0.9):
+    smoothed_points = []
+    for point in points:
+        if smoothed_points:
+            prev = smoothed_points[-1]
+            smoothed_points.append(prev * factor + point * (1 - factor))
+        else:
+            smoothed_points.append(point)
+        return smoothed_points
+
+
+class TreePredictor:
     """Class for training and predicting tree crowns in RGB images.
 
     Args:
@@ -48,36 +66,30 @@ class deepforest:
     """
 
     def __init__(self, weights=None, saved_model=None):
+        self.labels = {0: "Tree"}
         self.weights = weights
-        self.saved_model = saved_model
+        self.model_name = ntpath.basename(saved_model)
+        self.training_model = None
 
-        # Read config file - if a config file exists in local dir use it,
-        # if not use installed.
-        if os.path.exists("deepforest_config.yml"):
-            config_path = "deepforest_config.yml"
-        else:
-            try:
-                config_path = get_model("deepforest_config.yml")
-            except Exception as e:
-                raise ValueError(
-                    "No deepforest_config.yml found either in local "
-                    "directory or in installed package location. {}".format(e))
+        try:
+            config_path = get_model("deepforest_config.yml")
+
+
+        except Exception as e:
+            raise ValueError(
+                "No deepforest_config.yml found.{}".format(e))
 
         print("Reading config file: {}".format(config_path))
         self.config = utilities.read_config(config_path)
 
-        # Create a label dict, defaults to "Tree"
-        self.read_classes()
-
-        # release version id to flag if release is being used
-        self.__release_version__ = None
-
         # Load saved model if needed
-        if self.saved_model:
-            print("Loading saved model")
+        if saved_model:
+            print("Loading saved model:", self.model_name)
             # Capture user warning, not relevant here
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=UserWarning)
+
+                self.model_file = saved_model
                 self.model = models.load_model(saved_model)
                 self.prediction_model = convert_model(self.model)
 
@@ -91,24 +103,8 @@ class deepforest:
                   "To perform prediction, either train or load an existing model.")
             self.model = None
 
-    def read_classes(self):
-        """Read class file in case of multi-class training.
-
-        If no file has been created, DeepForest assume there is 1 class,
-        Tree
-        """
-        # parse the provided class file
-        self.labels = {}
-        try:
-            with open(self.classes_file, 'r') as file:
-                self.classes = _read_classes(csv.reader(file, delimiter=','))
-            for key, value in self.classes.items():
-                self.labels[value] = key
-        except:
-            self.labels[0] = "Tree"
-
     def train(self,
-              annotations,
+              training_annotations,
               input_type="fit_generator",
               list_of_tfrecords=None,
               comet_experiment=None,
@@ -118,7 +114,7 @@ class deepforest:
         existing weights or scratch.
 
         Args:
-            annotations (str): Path to csv label file,
+            training_annotations (str): Path to csv label file,
                 labels are in the format -> path/to/image.png,x1,y1,x2,y2,class_name
             input_type: "fit_generator" or "tfrecord"
             list_of_tfrecords: Ignored if input_type != "tfrecord",
@@ -132,21 +128,112 @@ class deepforest:
             prediction model: with bbox nms
                 trained model: without nms
         """
-        # Test if there is a new classes file in case # of classes has changed.
-        self.classes_file = utilities.create_classes(annotations)
-        self.read_classes()
-        arg_list = utilities.format_args(annotations, self.classes_file, self.config,
-                                         images_per_epoch)
+
+        arg_list = utilities.format_args(training_annotations, self.config, images_per_epoch)
+        args = parse_args(arg_list)
 
         print("Training retinanet with the following args {}".format(arg_list))
 
-        # Train model
-        self.model, self.prediction_model, self.training_model = retinanet_train(
-            forest_object=self,
-            args=arg_list,
-            input_type=input_type,
-            list_of_tfrecords=list_of_tfrecords,
-            comet_experiment=comet_experiment)
+        # create object that stores backbone information
+        backbone = models.backbone(args.backbone)
+
+        # make sure keras is the minimum required version
+        # check_keras_version()
+
+        # optionally choose specific GPU
+        if args.gpu:
+            setup_gpu(args.gpu)
+
+        # optionally load config parameters
+        if args.config:
+            args.config = read_config_file(args.config)
+
+        # data input
+        if input_type == "fit_generator":
+            # create the generators
+            train_generator, validation_generator = create_generators(
+                args, backbone.preprocess_image)
+
+            # placeholder target tensor for creating models
+            targets = None
+
+        elif input_type == "tfrecord":
+            # Create tensorflow iterators
+            iterator = tfrecords.create_dataset(list_of_tfrecords, args.batch_size)
+            next_element = iterator.get_next()
+
+            # Split into inputs and targets
+            inputs = next_element[0]
+            targets = [next_element[1], next_element[2]]
+
+            validation_generator = None
+
+        else:
+            raise ValueError("{} input type is invalid. Only 'tfrecord' or 'for_generator' "
+                             "input types are accepted for model training".format(input_type))
+
+        # create the model
+        if args.snapshot is not None:
+            print('Loading model, this may take a second...')
+            model = models.load_model(args.snapshot, backbone_name=args.backbone)
+            training_model = model
+            anchor_params = None
+            if args.config and 'anchor_parameters' in args.config:
+                anchor_params = parse_anchor_parameters(args.config)
+            prediction_model = retinanet_bbox(model=model, anchor_params=anchor_params)
+        else:
+            weights = args.weights
+
+            if weights is None:
+                weights = self.model_file
+
+            if self.model is None or self.training_model is None or self.prediction_model is None:
+                print("Creating models...")
+                self.model, self.training_model, self.prediction_model = create_models(
+                    backbone_retinanet=backbone.retinanet,
+                    num_classes=1,
+                    weights=weights,
+                    multi_gpu=args.multi_gpu,
+                    freeze_backbone=args.freeze_backbone,
+                    lr=args.lr,
+                    config=args.config,
+                    targets=targets,
+                    freeze_layers=args.freeze_layers)
+
+        # this lets the generator compute backbone layer shapes using the actual backbone model
+        if 'vgg' in args.backbone or 'densenet' in args.backbone:
+            train_generator.compute_shapes = make_shapes_callback(model)
+            if validation_generator:
+                validation_generator.compute_shapes = train_generator.compute_shapes
+
+        # create the callbacks
+        callbacks = create_callbacks(self.model, self.training_model, self.prediction_model,
+                                     validation_generator, args, comet_experiment)
+
+        if not args.compute_val_loss:
+            validation_generator = None
+
+        # start training
+        if input_type == "fit_generator":
+            self.history = self.training_model.fit_generator(generator=train_generator,
+                                                             steps_per_epoch=args.steps,
+                                                             epochs=args.epochs,
+                                                             verbose=1,
+                                                             callbacks=callbacks,
+                                                             workers=args.workers,
+                                                             use_multiprocessing=args.multiprocessing,
+                                                             max_queue_size=args.max_queue_size,
+                                                             validation_data=validation_generator)
+        elif input_type == "tfrecord":
+
+            # Fit model
+            history = training_model.fit(x=inputs,
+                                         steps_per_epoch=args.steps,
+                                         epochs=args.epochs,
+                                         callbacks=callbacks)
+        else:
+            raise ValueError("{} input type is invalid. Only 'tfrecord' or 'for_generator' "
+                             "input types are accepted for model training".format(input_type))
 
     def use_release(self, gpus=1):
         """Use the latest DeepForest model release from github and load model.
@@ -165,9 +252,9 @@ class deepforest:
 
         if gpus == 1:
             with warnings.catch_warnings():
-                # Suppress compilte warning, not relevant here
+                # Suppress compile warning, not relevant here
                 warnings.filterwarnings("ignore", category=UserWarning)
-                self.model = utilities.read_model(self.weights, self.config)
+                self.model = utilities.read_model(self.weights)
 
             # Convert model
             self.prediction_model = convert_model(self.model)
@@ -205,8 +292,8 @@ class deepforest:
                 None: If return_plot is True, images are written to save_dir as a side effect.
         """
         # Format args for CSV generator
-        classes_file = utilities.create_classes(annotations)
-        arg_list = utilities.format_args(annotations, classes_file, self.config)
+        labels_file = utilities.update_labels(annotations, self.labels)
+        arg_list = utilities.format_args(annotations, labels_file, self.config)
         args = parse_args(arg_list)
 
         # create generator
@@ -270,7 +357,7 @@ class deepforest:
                            annotations,
                            comet_experiment=None,
                            iou_threshold=0.5,
-                           max_detections=200):
+                           max_detections=350):
         """Evaluate prediction model using a csv fit_generator.
 
         Args:
@@ -285,19 +372,20 @@ class deepforest:
             mAP: Mean average precision of the evaluated data
         """
         # Format args for CSV generator
-        classes_file = utilities.create_classes(annotations)
-        arg_list = utilities.format_args(annotations, classes_file, self.config)
+        arg_list = utilities.format_args(annotations, self.config)
         args = parse_args(arg_list)
 
         # create generator
         validation_generator = CSVGenerator(
             args.annotations,
-            args.classes,
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side,
             config=args.config,
             shuffle_groups=False,
         )
+
+        print("---------------------------------------------")
+        print(self.prediction_model)
 
         average_precisions = evaluate(validation_generator,
                                       self.prediction_model,
@@ -356,7 +444,7 @@ class deepforest:
         """
 
         # Check for model save
-        if (self.prediction_model is None):
+        if self.prediction_model is None:
             raise ValueError("Model currently has no prediction weights, "
                              "either train a new model using deepforest.train, "
                              "loading existing model, or use prebuilt model "
@@ -368,14 +456,15 @@ class deepforest:
                              "If predicting a loaded image (channel order BGR), "
                              "use numpy_image argument.")
 
-        #Check for correct formatting
+        # Check for correct formatting
         if numpy_image is None:
             if image_path is not None:
                 numpy_image = cv2.imread(image_path)
             else:
-                raise ValueError("No input specified. deepforest.predict_image() requires either a numpy_image array or a path to a file to read.")
+                raise ValueError(
+                    "No input specified. deepforest.predict_image() requires either a numpy_image array or a path to a file to read.")
 
-        #Predict
+        # Predict
         prediction = predict.predict_image(self.prediction_model,
                                            image_path=image_path,
                                            raw_image=numpy_image,
@@ -459,7 +548,7 @@ class deepforest:
             with tf.Session() as sess:
                 print(
                     "{} predictions in overlapping windows, applying non-max supression".
-                    format(predicted_boxes.shape[0]))
+                        format(predicted_boxes.shape[0]))
                 new_boxes, new_scores, new_labels = predict.non_max_suppression(
                     sess,
                     predicted_boxes[["xmin", "ymin", "xmax", "ymax"]].values,
@@ -474,7 +563,7 @@ class deepforest:
                     np.expand_dims(new_scores, axis=1),
                     np.expand_dims(new_labels, axis=1)
                 ],
-                                                  axis=1)
+                    axis=1)
 
                 mosaic_df = pd.DataFrame(
                     image_detections,
@@ -489,37 +578,124 @@ class deepforest:
             for box in mosaic_df[["xmin", "ymin", "xmax", "ymax"]].values:
                 draw_box(numpy_image, box, [0, 0, 255])
 
-            # Mantain consistancy with predict_image
+            # Maintain consistency with predict_image
             return numpy_image
         else:
             return mosaic_df
 
+    def predict_trees(self,
+                      image_path,
+                      score_threshold=0,
+                      tree_count_threshold=None) -> list:
+        """
+        Predict and then store the results as images.
+        Saves all the bounding box data in a json-file.
+
+        @param image_path: Forest image.
+        @param score_threshold: Threshold for tree accuracy. 0.0-1.0
+        @param tree_count_threshold: Set a limit for number of trees to be saved.
+        @return: CSV-file with found trees.
+        """
+
+        try:
+
+            pil_img = Image.open(image_path)
+
+            bounding_boxes = self.predict_image(image_path, return_plot=False)
+
+            tree_count = len(bounding_boxes)
+            img_list = []
+            coordinate_list = []
+
+            if tree_count_threshold is not None:
+                if tree_count < tree_count_threshold:
+                    print("Trees found:", tree_count)
+                    print("Tree count is lower than the threshold")
+                    return
+            elif tree_count == 0:
+                print("No trees found")
+                return 0
+
+            tree_count = 0
+
+            for _, row in bounding_boxes.iterrows():
+
+                x_min = round(row["xmin"])
+                y_min = round(row["ymin"])
+                x_max = round(row["xmax"])
+                y_max = round(row["ymax"])
+                score = round(row["score"], 2)
+                # TODO: Remove "Tree" from Retinanet.
+                # tree = row["label"]
+
+                if score < score_threshold:
+                    continue
+
+                tree_img = pil_img.crop((x_min, y_min, x_max, y_max))
+                img_list.append(tree_img)
+                coordinate_list.append(tuple([x_min, y_min, x_max, y_max]))
+
+                tree_count += 1
+
+        except IOError as e:
+            print(e)
+            return None
+        else:
+            return img_list, coordinate_list
+
     def plot_curves(self):
         """Plot training curves."""
         if self.history:
+
+            # loss, regression_loss, classification_loss, lr
+
             # Plot training & validation regression loss values
             fig, axes, = plt.subplots(nrows=1, ncols=3)
             axes = axes.flatten()
 
-            # Regression Loss
-            axes[0].plot(self.history.history['regression_loss'])
-            axes[0].set_title('Bounding Box Loss')
+            epochs = len(self.history.history['loss'])
+
+            # Loss
+            axes[0].plot(self.history.history['loss'])
+            axes[0].set_title('Loss')
             axes[0].set_ylabel('Loss')
             axes[0].set_xlabel('Epoch')
 
-            # Classification Loss
-            axes[1].plot(self.history.history['classification_loss'])
-            axes[1].set_title('Classification Loss')
+            # Regression Loss
+            axes[1].plot(self.history.history['regression_loss'])
+            axes[1].set_title('Bounding Box Loss')
             axes[1].set_ylabel('Loss')
             axes[1].set_xlabel('Epoch')
 
+            # Classification Loss
+            axes[2].plot(self.history.history['classification_loss'])
+            axes[2].set_title('Classification Loss')
+            axes[2].set_ylabel('Loss')
+            axes[2].set_xlabel('Epoch')
+
             # Plot validation mAP
             if "mAP" in self.history.history.keys():
+                print("Map also")
                 axes[2].plot(self.history.history['mAP'])
                 axes[2].set_title('Validation: Mean Average Precision')
                 axes[2].set_ylabel('mAP')
                 axes[2].set_xlabel('Epoch')
+
             plt.show()
         else:
             print("No training history found.")
             return None
+
+    def save_model(self, model_name):
+        """Saves the current loaded model in the model directory."""
+        self.current_model.model.save(os.path.join(get_model_dir(), model_name + ".h5"))
+
+    def evaluate_model(self, csv_file):
+        """
+        Evaluates the models' accuracy and prints the mean average precision.
+        @param csv_file: CSV-file containing annotation data for a specific image in the deepforest/data folder.
+        """
+        eval_data = self.evaluate_generator(annotations=csv_file)
+        print("Mean Average Precision is: {:.3f}".format(eval_data))
+
+# merge all csv before

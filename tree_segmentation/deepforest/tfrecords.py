@@ -16,8 +16,8 @@ import numpy as np
 import psutil
 import tensorflow as tf
 
-from tree_segmentation.deepforest.keras_retinanet import models
-from tree_segmentation.deepforest.keras_retinanet.preprocessing.csv_generator import CSVGenerator
+from tree_segmentation.keras_retinanet import models
+from tree_segmentation.keras_retinanet.preprocessing.csv_generator import CSVGenerator
 
 
 def create_tf_example(image, regression_target, class_target, fname, original_image):
