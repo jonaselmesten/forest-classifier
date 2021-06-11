@@ -6,7 +6,6 @@ from collections import deque
 from glob import glob
 from shutil import copy2
 from tkinter import filedialog, Tk
-from deepforest import main
 
 import eel
 
@@ -16,6 +15,7 @@ from folders import get_gui, get_tsmt, get_c, get_tsm
 from gui.menu import MainMenu
 from gui.window import TreeWindow
 from tree_segmentation.image import flip_img_csv
+from tree_segmentation.segment import TreePredictor
 
 
 @eel.expose
@@ -64,7 +64,6 @@ class Application:
         eel.init('gui')
 
         self.classifier, self.predictor = self.load_models()
-
         self.main_window = self.create_main_window()
         self.main_window.mainloop()
 
@@ -76,10 +75,7 @@ class Application:
 
         classifier = TreeClassifier()
         classifier.load_model(get_c("ep_20_no_r.h5"))
-        classifier.warm_up()
-
-        predictor = main.deepforest()
-        predictor.use_release()
+        predictor = TreePredictor()
 
         return classifier, predictor
 
@@ -154,15 +150,14 @@ class Application:
             self.main_window.inc_progress_bar(inc_value)
 
             # Predict & classify
-
             img_list, bb_list = self.predictor.predict_trees(image_path=image_path, score_threshold=0.40)
-            result_list = self.classifier.classify_batch_of_trees(img_list, batch_size=len(img_list))
+            #result_list = self.classifier.classify_batch_of_trees(img_list, batch_size=len(img_list))
 
             # Start assembling final data list
             for i, coordinate in enumerate(bb_list):
                 tree_data[image_path].append(list(coordinate))
-                tree_data[image_path][i].append(result_list[i][0])
-                tree_data[image_path][i].append(result_list[i][1])
+                #tree_data[image_path][i].append(result_list[i][0])
+                #tree_data[image_path][i].append(result_list[i][1])
 
                 # For each tree: [(x, y, x, y), Class, Score]
 

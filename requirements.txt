@@ -1,0 +1,6 @@
+future>=0.18.2
+pillow>=8.2.0
+eel>=0.14.0
+matplotlib>=3.4.2
+numpy>=1.20.3
+deepforest>=1.0.0
