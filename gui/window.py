@@ -69,7 +69,6 @@ class TreeWindow(tk.Tk):
 
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
-        self.state("zoomed")
         self.widget_list = []
         self.lift()
 

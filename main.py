@@ -1,5 +1,4 @@
 import os
-import os
 import sys
 import time
 from collections import deque
@@ -9,7 +8,7 @@ from tkinter import filedialog, Tk
 
 import eel
 
-from classifier.tree_classifier import extract_class_trees, TreeClassifier
+#from classifier.tree_classifier import extract_class_trees, TreeClassifier
 from files.csv import update_csv_file, save_csv_file
 from folders import get_gui, get_tsmt, get_c, get_tsm
 from gui.menu import MainMenu
@@ -61,7 +60,7 @@ class Application:
 
     def __init__(self):
 
-        eel.init('gui')
+        eel.init("gui")
 
         self.classifier, self.predictor = self.load_models()
         self.main_window = self.create_main_window()
@@ -73,8 +72,9 @@ class Application:
 
         print("Loading models...")
 
-        classifier = TreeClassifier()
-        classifier.load_model(get_c("ep_20_no_r.h5"))
+        #classifier = TreeClassifier()
+        #classifier.load_model(get_c("ep_20_no_r.h5"))
+        classifier = None
         predictor = TreePredictor()
 
         return classifier, predictor
@@ -151,13 +151,20 @@ class Application:
 
             # Predict & classify
             img_list, bb_list = self.predictor.predict_trees(image_path=image_path, score_threshold=0.40)
+            result_list = []
+
+            # TODO: Make classifier work.
+            for i in range(len(img_list)):
+                result_list.append(["Tree", 0.73] * len(img_list))
+            print(result_list)
             #result_list = self.classifier.classify_batch_of_trees(img_list, batch_size=len(img_list))
+            # TODO: --------------------
 
             # Start assembling final data list
             for i, coordinate in enumerate(bb_list):
                 tree_data[image_path].append(list(coordinate))
-                #tree_data[image_path][i].append(result_list[i][0])
-                #tree_data[image_path][i].append(result_list[i][1])
+                tree_data[image_path][i].append(result_list[i][0])
+                tree_data[image_path][i].append(result_list[i][1])
 
                 # For each tree: [(x, y, x, y), Class, Score]
 
@@ -214,7 +221,7 @@ class Application:
 
     # TODO: Ladda alla bilder här
     def open_annotation(self):
-        eel.start(get_gui("via.html"))
+        eel.start("via.html", mode="mozilla")
 
 
 app = Application()
