@@ -48,8 +48,8 @@ def select_annotations(annotations, windows, index, allow_empty=False):
     """Select annotations that overlap with selected image crop.
 
     Args:
-        image_name (str): Name of the image in the annotations file to lookup.
-        annotations_file: path to annotations file in
+        image_name (str): Name of the image in the annotations files to lookup.
+        annotations_file: path to annotations files in
             the format -> image_path, xmin, ymin, xmax, ymax, label
         windows: A sliding window object (see compute_windows)
         index: The index in the windows object to use a crop bounds
@@ -116,7 +116,7 @@ def select_annotations(annotations, windows, index, allow_empty=False):
 
 
 def save_crop(base_dir, image_name, index, crop):
-    """Save window crop as image file to be read by PIL.
+    """Save window crop as image files to be read by PIL.
 
     Filename should match the image_name + window index
     """
@@ -139,11 +139,11 @@ def split_raster(path_to_raster,
                  patch_overlap=0.05,
                  allow_empty=False):
     """Divide a large tile into smaller arrays. Each crop will be saved to
-    file.
+    files.
 
     Args:
         path_to_raster: (str): Path to a tile that can be read by rasterio on disk
-        annotations_file (str): Path to annotations file (with column names)
+        annotations_file (str): Path to annotations files (with column names)
             data in the format -> image_path, xmin, ymin, xmax, ymax, label
         base_dir (str): Where to save the annotations and image
             crops relative to current working dir
@@ -153,7 +153,7 @@ def split_raster(path_to_raster,
             to be included in the dataset
 
     Returns:
-        A pandas dataframe with annotations file for training.
+        A pandas dataframe with annotations files for training.
     """
     # Load raster as image
     raster = Image.open(path_to_raster)
@@ -162,7 +162,7 @@ def split_raster(path_to_raster,
     # Check that its 3 band
     bands = numpy_image.shape[2]
     if not bands == 3:
-        raise IOError("Input file {} has {} bands. DeepForest only accepts 3 band RGB "
+        raise IOError("Input files {} has {} bands. DeepForest only accepts 3 band RGB "
                       "rasters in the order (height, width, channels). "
                       "If the image was cropped and saved as a .jpg, "
                       "please ensure that no alpha channel was used.".format(
@@ -181,22 +181,22 @@ def split_raster(path_to_raster,
     # Get image name for indexing
     image_name = os.path.basename(path_to_raster)
 
-    # Load annotations file and coerce dtype
+    # Load annotations files and coerce dtype
     annotations = pd.read_csv(annotations_file)
 
-    # open annotations file
+    # open annotations files
     image_annotations = annotations[annotations.image_path == image_name].copy()
 
     # Sanity checks
     if image_annotations.empty:
         raise ValueError(
-            "No image names match between the file:{} and the image_path: {}. "
+            "No image names match between the files:{} and the image_path: {}. "
             "Reminder that image paths should be the relative "
             "path (e.g. 'image_name.tif'), not the full path "
             "(e.g. path/to/dir/image_name.tif)".format(annotations_file, image_name))
 
     if not annotations.shape[1] == 6:
-        raise ValueError("Annotations file has {} columns, should have "
+        raise ValueError("Annotations files has {} columns, should have "
                          "format image_path, xmin, ymin, xmax, ymax, label".format(
                              annotations.shape[1]))
 
@@ -219,7 +219,7 @@ def split_raster(path_to_raster,
             save_crop(base_dir, image_name, index, crop)
     if len(annotations_files) == 0:
         raise ValueError(
-            "Input file has no overlapping annotations and allow_empty is {}".format(
+            "Input files has no overlapping annotations and allow_empty is {}".format(
                 allow_empty))
 
     annotations_files = pd.concat(annotations_files)

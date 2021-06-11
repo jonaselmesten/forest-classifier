@@ -6,20 +6,16 @@ from collections import deque
 from glob import glob
 from shutil import copy2
 from tkinter import filedialog, Tk
+from deepforest import main
 
 import eel
 
 from classifier.tree_classifier import extract_class_trees, TreeClassifier
-from file.csv import update_csv_file, save_csv_file
+from files.csv import update_csv_file, save_csv_file
 from folders import get_gui, get_tsmt, get_c, get_tsm
 from gui.menu import MainMenu
 from gui.window import TreeWindow
-from tree_segmentation.deepforest.deepforest import TreePredictor
 from tree_segmentation.image import flip_img_csv
-
-
-# physical_devices = tensorflow.config.experimental.list_physical_devices("GPU")
-# set_memory_growth(physical_devices[0], True)
 
 
 @eel.expose
@@ -78,13 +74,12 @@ class Application:
 
         print("Loading models...")
 
-        # window = LoadModelWindow()
-        # window.update()
-
         classifier = TreeClassifier()
         classifier.load_model(get_c("ep_20_no_r.h5"))
         classifier.warm_up()
-        predictor = TreePredictor(saved_model=get_tsm("trained_35.h5"))
+
+        predictor = main.deepforest()
+        predictor.use_release()
 
         return classifier, predictor
 
@@ -159,6 +154,7 @@ class Application:
             self.main_window.inc_progress_bar(inc_value)
 
             # Predict & classify
+
             img_list, bb_list = self.predictor.predict_trees(image_path=image_path, score_threshold=0.40)
             result_list = self.classifier.classify_batch_of_trees(img_list, batch_size=len(img_list))
 

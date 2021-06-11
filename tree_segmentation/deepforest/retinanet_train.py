@@ -293,12 +293,12 @@ def parse_args(args):
 
     csv_parser = subparsers.add_parser('csv')
     csv_parser.add_argument('annotations',
-                            help='Path to CSV file containing annotations for training.')
+                            help='Path to CSV files containing annotations for training.')
     # csv_parser.add_argument('classes',
-                            # help='Path to a CSV file containing class label mapping.')
+                            # help='Path to a CSV files containing class label mapping.')
     csv_parser.add_argument(
         '--val-annotations',
-        help='Path to CSV file containing annotations for validation (optional).')
+        help='Path to CSV files containing annotations for validation (optional).')
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--snapshot', help='Resume training from a snapshot.')
@@ -309,7 +309,7 @@ def parse_args(args):
         action='store_const',
         const=True,
         default=True)
-    group.add_argument('--weights', help='Initialize the model with weights from a file.')
+    group.add_argument('--weights', help='Initialize the model with weights from a files.')
     group.add_argument('--no-weights',
                        help='Don\'t initialize the model with any weights.',
                        dest='imagenet_weights',
@@ -374,7 +374,7 @@ def parse_args(args):
         help='Rescale the image if the largest side is larger than max_side.',
         type=int,
         default=1333)
-    parser.add_argument('--config', help='Path to a configuration parameters .ini file.')
+    parser.add_argument('--config', help='Path to a configuration parameters .ini files.')
     parser.add_argument(
         '--weighted-average',
         help='Compute the mAP using the weighted average of precisions among classes.',

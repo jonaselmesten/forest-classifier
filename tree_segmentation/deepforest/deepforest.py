@@ -79,7 +79,7 @@ class TreePredictor:
             raise ValueError(
                 "No deepforest_config.yml found.{}".format(e))
 
-        print("Reading config file: {}".format(config_path))
+        print("Reading config files: {}".format(config_path))
         self.config = utilities.read_config(config_path)
 
         # Load saved model if needed
@@ -114,14 +114,14 @@ class TreePredictor:
         existing weights or scratch.
 
         Args:
-            training_annotations (str): Path to csv label file,
+            training_annotations (str): Path to csv label files,
                 labels are in the format -> path/to/image.png,x1,y1,x2,y2,class_name
             input_type: "fit_generator" or "tfrecord"
             list_of_tfrecords: Ignored if input_type != "tfrecord",
                 list of tf records to process
             comet_experiment: A comet ml object to log images. Optional.
             images_per_epoch: number of images to override default config
-                of images in annotations file / batch size. Useful for debug
+                of images in annotations files / batch size. Useful for debug
 
         Returns:
             model (object): A trained keras model
@@ -280,7 +280,7 @@ class TreePredictor:
         """Predict bounding boxes for a model using a csv fit_generator
 
         Args:
-            annotations (str): Path to csv label file, labels are in the
+            annotations (str): Path to csv label files, labels are in the
                 format -> path/to/image.png,x1,y1,x2,y2,class_name
             comet_experiment(object): A comet experiment class objects to track
             color: rgb color for the box annotations if return_plot is True e.g. (255,140,0) is orange.
@@ -288,7 +288,7 @@ class TreePredictor:
 
         Return:
             boxes_output: If return_plot=False, a pandas dataframe of bounding boxes
-                for each image in the annotations file
+                for each image in the annotations files
                 None: If return_plot is True, images are written to save_dir as a side effect.
         """
         # Format args for CSV generator
@@ -338,7 +338,7 @@ class TreePredictor:
                     boxes_output.append(box_df)
         else:
             raise ValueError(
-                "No prediction model loaded. Either load a retinanet from file, "
+                "No prediction model loaded. Either load a retinanet from files, "
                 "download the latest release or train a new model")
 
         if return_plot:
@@ -361,7 +361,7 @@ class TreePredictor:
         """Evaluate prediction model using a csv fit_generator.
 
         Args:
-            annotations (str): Path to csv label file, labels are in the
+            annotations (str): Path to csv label files, labels are in the
                 format -> path/to/image.png,x1,y1,x2,y2,class_name
             comet_experiment(object): A comet experiment class objects to track
             iou_threshold(float): IoU Threshold to count for a positive detection
@@ -462,7 +462,7 @@ class TreePredictor:
                 numpy_image = cv2.imread(image_path)
             else:
                 raise ValueError(
-                    "No input specified. deepforest.predict_image() requires either a numpy_image array or a path to a file to read.")
+                    "No input specified. deepforest.predict_image() requires either a numpy_image array or a path to a files to read.")
 
         # Predict
         prediction = predict.predict_image(self.prediction_model,
@@ -589,12 +589,12 @@ class TreePredictor:
                       tree_count_threshold=None) -> list:
         """
         Predict and then store the results as images.
-        Saves all the bounding box data in a json-file.
+        Saves all the bounding box data in a json-files.
 
         @param image_path: Forest image.
         @param score_threshold: Threshold for tree accuracy. 0.0-1.0
         @param tree_count_threshold: Set a limit for number of trees to be saved.
-        @return: CSV-file with found trees.
+        @return: CSV-files with found trees.
         """
 
         try:
@@ -693,7 +693,7 @@ class TreePredictor:
     def evaluate_model(self, csv_file):
         """
         Evaluates the models' accuracy and prints the mean average precision.
-        @param csv_file: CSV-file containing annotation data for a specific image in the deepforest/data folder.
+        @param csv_file: CSV-files containing annotation data for a specific image in the deepforest/data folder.
         """
         eval_data = self.evaluate_generator(annotations=csv_file)
         print("Mean Average Precision is: {:.3f}".format(eval_data))

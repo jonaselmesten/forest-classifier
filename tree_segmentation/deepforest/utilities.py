@@ -66,7 +66,7 @@ def round_with_floats(x):
         result = int(x)
     except:
         warnings.warn(
-            "Annotations file contained non-integer coordinates. "
+            "Annotations files contained non-integer coordinates. "
             "These coordinates were rounded to nearest int. "
             "All coordinates must correspond to pixels in the image coordinate system. "
             "If you are attempting to use projected data, "
@@ -111,7 +111,7 @@ def update_labels(annotations_file, training_file, current_labels):
 
 
 def number_of_images(annotations_file):
-    """How many images in the annotations file?
+    """How many images in the annotations files?
 
     Args:
         annotations_file (str):
@@ -128,7 +128,7 @@ def number_of_images(annotations_file):
 
 
 def format_args(annotations_file, config, images_per_epoch=None):
-    """Format config file to match argparse list for retinainet.
+    """Format config files to match argparse list for retinainet.
 
     Args:
         annotations_file: a path to a csv

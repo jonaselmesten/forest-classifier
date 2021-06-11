@@ -7,10 +7,10 @@ from tree_segmentation.deepforest import get_data
 
 def read_and_parse_json(json_file: os.path, save_folder: os.path) -> os.path:
     """
-    Reads and parses a json-file to the correct format for training/evaluation.
-    @param save_folder: Folder to save csv-file.
-    @param json_file: Text file containing json.
-    @return: Path to csv file - None if IO-error.
+    Reads and parses a json-files to the correct format for training/evaluation.
+    @param save_folder: Folder to save csv-files.
+    @param json_file: Text files containing json.
+    @return: Path to csv files - None if IO-error.
     """
     json_file = get_data(json_file)
 
@@ -20,7 +20,7 @@ def read_and_parse_json(json_file: os.path, save_folder: os.path) -> os.path:
 
     image_path = value["filename"]
 
-    # Create csv file
+    # Create csv files
     csv_file = image_path.split(".")
     csv_file[1] = "csv"
     csv_file = ".".join(csv_file)
@@ -41,7 +41,7 @@ def read_and_parse_json(json_file: os.path, save_folder: os.path) -> os.path:
 
             if xmin > xmax | ymin > ymax:
                 os.remove(csv_file)
-                raise ValueError("Xmin/ymin should never be bigger than xmax/ymax, check your file for error.")
+                raise ValueError("Xmin/ymin should never be bigger than xmax/ymax, check your files for error.")
 
             result = [image_path, str(xmin), str(ymin), str(xmax), str(ymax), "Tree"]
             file_writer.writerow(result)

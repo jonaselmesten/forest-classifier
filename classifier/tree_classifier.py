@@ -15,9 +15,7 @@ from keras_preprocessing.image import ImageDataGenerator
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
-from tensorflow_core.python import get_default_session, get_default_graph, Session
-from tensorflow_core.python.framework.config import set_memory_growth
-from tensorflow_core.python.keras.backend import get_session
+
 
 from classifier.layers import Rescaling
 from folders import get_ct, get_c
@@ -148,7 +146,7 @@ def visualize_data_transformation(data_generator):
 
 class TreeClassifier:
 
-    # TODO: Add config file and reader just like in deepforest.
+    # TODO: Add config files and reader just like in deepforest.
     def __init__(self, saved_model=None):
         self.history = None
         self.rescale = Rescaling(1. / 255)

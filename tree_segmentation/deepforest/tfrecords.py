@@ -3,7 +3,7 @@ across multi-gpu There were a tradeoffs made in this repo.
 
 It would be natural to save the generated prepreprocessed image to
 tfrecord from the generator. This results in enormous (100x) files. The
-compromise was to read the original image from file using tensorflow's
+compromise was to read the original image from files using tensorflow's
 data pipeline. The opencv resize billinear method is marginally
 different then the tensorflow method, so we can't literally assert they
 are the same array.
@@ -52,7 +52,7 @@ def create_tf_example(image, regression_target, class_target, fname, original_im
                     value=[regression_target.shape[0]]))
         }))
 
-    # Serialize to string and write to file
+    # Serialize to string and write to files
     return example
 
 
@@ -83,14 +83,14 @@ def create_tfrecords(annotations_file,
     image_basename = os.path.splitext(os.path.basename(annotations_file))[0]
 
     # Syntax checks
-    # Check annotations file only JPEG, PNG, GIF, or BMP are allowed.
+    # Check annotations files only JPEG, PNG, GIF, or BMP are allowed.
     # df = pd.read_csv(annotations_file,
     # names=["image_path","xmin","ymin","xmax","ymax","label"])
     # df['FileType'] = df.image_path.str.split('.').str[-1].str.lower()
     # bad_files = df[~df['FileType'].isin(["jpeg","jpg","png","gif","bmp"])]
 
     # if not bad_files.empty:
-    # raise ValueError("Check annotations file, only JPEG, PNG, GIF, or BMP are allowed,
+    # raise ValueError("Check annotations files, only JPEG, PNG, GIF, or BMP are allowed,
     # {} incorrect files found /n {}: ".format(bad_files.shape[0],bad_files.head()))
 
     # Check dtypes, cannot use pandas, or will coerce in the presence of NAs
@@ -228,7 +228,7 @@ def _parse_fn(example):
     # Load one example and parse
     example = tf.io.parse_single_example(example, features)
 
-    # Load image from file
+    # Load image from files
     filename = tf.cast(example["image/filename"], tf.string)
     loaded_image = tf.read_file(filename)
     loaded_image = tf.image.decode_image(loaded_image, 3)

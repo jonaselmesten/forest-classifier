@@ -25,7 +25,7 @@ def predict_image(model,
         model (object): A keras-retinanet model to predict bounding boxes, either
             load a model from weights, use the latest release, or train a new model
             from scratch.
-        image_path (str): Path to image file on disk
+        image_path (str): Path to image files on disk
         raw_image (str): Numpy image array in BGR channel order following
             openCV convention
         score_threshold (float): Minimum probability score to be included in final
@@ -53,14 +53,14 @@ def predict_image(model,
     try:
         numpy_image.shape
     except:
-        raise IOError("Image file {} cannot be read, "
+        raise IOError("Image files {} cannot be read, "
                       "check that it exists".format(image_path))
 
     # Check that its 3 band
     bands = numpy_image.shape[2]
     if not bands == 3:
         raise IOError(
-            "Input file {} has {} bands. DeepForest only accepts 3 band RGB rasters."
+            "Input files {} has {} bands. DeepForest only accepts 3 band RGB rasters."
             "If the image was cropped and saved as a .jpg, "
             "please ensure that no alpha channel was used.".format(image_path, bands))
 
