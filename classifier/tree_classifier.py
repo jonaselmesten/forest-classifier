@@ -1,12 +1,9 @@
-import csv
+import os
 import os
 import pathlib
-import random
 import time
 import timeit
-from builtins import sum
 
-import keras_preprocessing
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
@@ -16,73 +13,8 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
 
-
 from classifier.layers import Rescaling
 from folders import get_ct, get_c
-
-
-def create_aug_trees(pil_img):
-    img_arr = keras_preprocessing.image.img_to_array(pil_img)
-
-    pil_img_list = []
-    generator = ImageDataGenerator()
-
-    for i in range(9):
-        test = generator.apply_transform(img_arr, transform_parameters={
-            "theta": random.randrange(-10, 10),
-            "shear": random.randrange(0, 20),
-            "zx": random.uniform(0.9, 1.1),
-            "zy": random.uniform(0.9, 1.1),
-            "flip_horizontal": True if random.random() > 0.5 else False,
-            "flip_vertical": True if random.random() > 0.5 else False,
-            "brightness": random.uniform(0.9, 1.1)
-        })
-        final = keras_preprocessing.image.array_to_img(test)
-        pil_img_list.append(final)
-
-    return pil_img_list
-
-
-def extract_class_trees(image_file, csv_file):
-    image = Image.open(image_file)
-
-    generator = ImageDataGenerator(
-        rescale=1. / 255,
-        brightness_range=[0.9, 1.1],
-        shear_range=0.2,
-        rotation_range=360,
-        zoom_range=0.2,
-        channel_shift_range=25,
-        vertical_flip=True,
-        horizontal_flip=True,
-        validation_split=0.2)
-
-    with open(csv_file, "r", newline="\n", encoding="utf-8")as file:
-        csv_reader = csv.reader(file)
-
-        for row in csv_reader:
-            if row[5].capitalize().strip() != "Tree":
-
-                class_name = row[5].lower()
-
-                # Create class folder
-                if not os.path.exists(get_ct(class_name)):
-                    os.makedirs(get_ct(class_name))
-
-                pixels = tuple(map(int, [row[1], row[2], row[3], row[4]]))
-                image_count = len(os.listdir(get_ct(class_name)))
-
-                # Save original image
-                img_name = class_name + "\\" + class_name.lower() + "_" + str(image_count)
-                org_image = image.crop(pixels)
-                org_image.save(get_ct(img_name + ".jpg"), "JPEG", quality=95)
-
-                img_list = create_aug_trees(org_image)
-
-                for aug_img in img_list:
-                    image_count += 1
-                    img_name = class_name + "\\" + class_name.lower() + "_" + str(image_count)
-                    aug_img.save(get_ct(img_name + ".jpg"), "JPEG", quality=95)
 
 
 def test_accuracy(folder_path, class_name, classifier_obj):
@@ -132,18 +64,6 @@ def test_accuracy(folder_path, class_name, classifier_obj):
     print("--------------------------")
 
 
-def visualize_data_transformation(data_generator):
-    print(data_generator)
-
-    augmented_images = [data_generator[0][0][0] for i in range(9)]
-
-    fig, axes = plt.subplots(3, 3, figsize=(30, 30))
-    axes = axes.flatten()
-    for img, ax in zip(augmented_images, axes):
-        ax.imshow(img)
-    plt.show()
-
-
 class TreeClassifier:
 
     # TODO: Add config files and reader just like in deepforest.
@@ -161,7 +81,6 @@ class TreeClassifier:
 
         # Sequential models without an `input_shape`
         # passed to the first layer cannot reload their optimizer state.
-
         self.model = Sequential([
             layers.Conv2D(16, 3, padding='same', activation='relu', input_shape=(250, 250, 3)),
             layers.MaxPooling2D(),
@@ -245,7 +164,6 @@ class TreeClassifier:
 
     def preprocess_img(self, pil_img):
 
-        # Preprocess
         resize_img = pil_img.resize(self.img_size, Image.NEAREST)
         img_array = keras.preprocessing.image.img_to_array(resize_img)
         img_array = tf.expand_dims(img_array, 0)
@@ -254,6 +172,7 @@ class TreeClassifier:
         return img_array
 
     def classify_batch_of_trees(self, img_list, batch_size=400, score_threshold=0.70):
+
         # TODO: Raise EXC when img and batch size is different
         batch_holder = np.zeros((batch_size, 250, 250, 3))
         result_list = []
@@ -289,83 +208,10 @@ class TreeClassifier:
     def save_model(self):
         self.model.save(filepath=get_c("ep_20_no_r.h5"))
 
-    def test_speed(self):
-
-        # Avg time: 0.029
-
-        dir = get_ct("spruce")
-        time_list = []
-        count = 0
-        pre_imgs = []
-
-        batch_size = 400
-        batch_holder = np.zeros((400, 250, 250, 3))
-
-        normal_pred = []
-        batch_pred = []
-
-        # Preprocess data
-        for i, img in enumerate(pathlib.Path(dir).glob("*.jpg")):
-
-            if i == batch_size:
-                break
-
-            pil_img = Image.open(img)
-            tree_img = pil_img.resize(self.img_size, Image.NEAREST)
-            img_array = keras.preprocessing.image.img_to_array(tree_img)
-            img_array = tf.expand_dims(img_array, 0)
-            img_array = self.rescale(img_array)
-
-            start = time.perf_counter()
-            a, b = self.classify_single_tree(tree_img)
-            stop = time.perf_counter() - start
-            time_list.append(stop)
-
-            normal_pred.append(str(a) + str(round(b, 3)))
-
-            batch_holder[i] = img_array
-
-        start = time.perf_counter()
-        finished = self.model.predict_on_batch(batch_holder)
-        stop = time.perf_counter() - start
-
-        print("NORMAL - Total:", sum(time_list))
-        print("NORMAL - per tree:", sum(time_list) / batch_size)
-        print("BATCH - Total:", stop)
-        print("BATCH - per tree:", stop / batch_size)
-        # Lowest 400
-        # 0.006692224499999999
-
-        for data in finished:
-            values = [data[0].numpy(), data[1].numpy()]
-            score = tf.nn.softmax(values)
-
-            a, b = self.class_names[np.argmax(score)], 100 * np.max(score)
-            batch_pred.append(str(a) + str(round(b, 3)))
-
-        for i in range(len(batch_pred)):
-
-            if batch_pred[i] != normal_pred[i]:
-                print("ERROR:", batch_pred[i], normal_pred[i])
-
-    def warm_up(self):
-
-        test_list = []
-        size = 1
-
-        for i in range(size):
-            img = get_ct("spruce\\spruce_0.jpg")
-            test_list.append(Image.open(img))
-
-        result_list = self.classify_batch_of_trees(test_list, batch_size=size)
-
-        print("Classifier batch - OK")
-
 
 # Rescaling kan inte sparas i save model....
 #classifier = TreeClassifier()
 #classifier.load_model(get_c("ep_20_no_r.h5"))
-
 
 # classifier.train()
 # classifier.plot_history()
