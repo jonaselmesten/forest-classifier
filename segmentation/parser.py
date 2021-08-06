@@ -2,7 +2,7 @@ import json
 import csv
 import os
 
-from tree_segmentation.deepforest import get_data
+from segmentation.deepforest import get_data
 
 
 def read_and_parse_json(json_file: os.path, save_folder: os.path) -> os.path:

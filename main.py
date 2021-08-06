@@ -14,8 +14,8 @@ from files.csv import update_csv_file, save_csv_file
 from folders import gui, tree_seg_train, classifier, tree_seg_model
 from gui.menu import MainMenu
 from gui.window import TreeWindow
-from tree_segmentation.image import flip_img_csv
-from tree_segmentation.segment import TreePredictor
+from segmentation.image import flip_img_csv
+from segmentation.segment import TreePredictor
 
 
 class Application:

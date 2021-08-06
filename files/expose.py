@@ -5,7 +5,7 @@ import eel
 from classifier.augmentation import extract_class_trees
 from files.csv import update_csv_file
 from folders import tree_seg_train, gui
-from tree_segmentation.image import flip_img_csv
+from segmentation.image import flip_img_csv
 
 
 @eel.expose
