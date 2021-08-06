@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter.ttk import Progressbar
 
 
-class MainMenu(tk.Tk, threading.Thread):
+class MainWin(tk.Tk, threading.Thread):
 
     def __init__(self, add_images, run_prediction, annotate_prediction):
         tk.Tk.__init__(self)

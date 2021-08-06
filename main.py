@@ -12,8 +12,8 @@ import eel
 from classifier.augmentation import extract_class_trees
 from files.csv import overwrite_csv_file, save_csv_file
 from folders import gui, tree_seg_train, classifier, tree_seg_model
-from gui.menu import MainMenu
-from gui.window import TreeWindow
+from gui.menu import MainWin
+from gui.window import TreeWin
 from segmentation.segment import TreePredictor
 
 
@@ -41,9 +41,9 @@ class Application:
         return classifier, predictor
 
     def create_main_window(self):
-        return MainMenu(run_prediction=self.run_prediction,
-                        add_images=self.copy_images,
-                        annotate_prediction=self.open_annotation_window)
+        return MainWin(run_prediction=self.run_prediction,
+                       add_images=self.copy_images,
+                       annotate_prediction=self.open_annotation_window)
 
     def copy_images(self):
         """
@@ -193,7 +193,7 @@ class Application:
 
         # Open a new window for each species for the user to go through.
         for class_name, trees in tree_species.items():
-            tree_window = TreeWindow(class_name, trees)
+            tree_window = TreeWin(class_name, trees)
             tree_window.mainloop()
 
         # Save all prediction data as csv.

@@ -5,7 +5,7 @@ from tkinter import ttk
 from PIL import ImageTk, Image, ImageEnhance
 
 
-class LoadModelWindow(tk.Tk):
+class LoadModelWin(tk.Tk):
 
     def __init__(self):
         tk.Tk.__init__(self)
@@ -33,7 +33,7 @@ class LoadModelWindow(tk.Tk):
         self.master_frame.grid()
 
 
-class ZoomedOutWindow(tk.Toplevel):
+class ZoomedOutWin(tk.Toplevel):
 
     def __init__(self, master, pil_img):
         tk.Toplevel.__init__(self, master=master)
@@ -56,7 +56,7 @@ class ZoomedOutWindow(tk.Toplevel):
         self.destroy()
 
 
-class TreeWindow(tk.Tk):
+class TreeWin(tk.Tk):
 
     def __init__(self, class_name, tree_list):
         tk.Tk.__init__(self)
@@ -104,20 +104,27 @@ class TreeWindow(tk.Tk):
 
         self.canvas.create_window((0, 0), window=self.buttons_frame, anchor=tk.NW)
 
-        self.buttons_frame.update_idletasks()  # Needed to make bbox info available.
+        # Needed to make bbox info available.
+        self.buttons_frame.update_idletasks()
 
-        self.bbox = self.canvas.bbox(tk.ALL)  # Get bounding box of canvas with Buttons.
+        # Get bounding box of canvas with Buttons.
+        self.bbox = self.canvas.bbox(tk.ALL)
         self.canvas.configure(scrollregion=self.bbox,
                               width=self.winfo_screenwidth(),
                               height=self.winfo_screenheight() - 100)
 
     def _zoom_out(self, tree):
+        """
+        Create a zoomed out window for a selected tree.
+        The tree will also be highlighted for easy identification.
+        @param tree: Tree to be zoomed out.
+        """
 
         image_path = tree[0]
         tree_data = tree[1]
         x_min, y_min, x_max, y_max = tree_data[0], tree_data[1], tree_data[2], tree_data[3]
 
-        # Open image and mark the tree
+        # Open image and mark the tree.
         main_pil_image = Image.open(image_path)
         tree_img = main_pil_image.crop((x_min, y_min, x_max, y_max))
         main_pil_image = ImageEnhance.Brightness(main_pil_image).enhance(0.5)
@@ -129,7 +136,6 @@ class TreeWindow(tk.Tk):
         plus_x = 0
         plus_y = 0
 
-        # Create a zoomed out square image
         # X-corrections
         if x_min - enlarge < 0:
             plus_x = enlarge - x_min
@@ -144,7 +150,7 @@ class TreeWindow(tk.Tk):
         else:
             x_max += enlarge + plus_x
 
-        # Y-corrections
+        # Y-corrections.
         if y_min - enlarge < 0:
             plus_y = enlarge - y_min
             y_min = 0
@@ -158,11 +164,15 @@ class TreeWindow(tk.Tk):
         else:
             y_max += enlarge + plus_y
 
+        # Create a zoomed out square image.
         zoom_out_img = main_pil_image.crop((x_min, y_min, x_max, y_max)).resize((500, 500))
-        ZoomedOutWindow(master=self, pil_img=zoom_out_img)
+        ZoomedOutWin(master=self, pil_img=zoom_out_img)
 
     def _load_images(self):
-
+        """
+        Loads all the images into the grid and adds the logic for removal
+        of it graphically and from the tree_list.
+        """
         self.buttons_frame.grid_forget()
 
         row_index = 1
@@ -179,47 +189,39 @@ class TreeWindow(tk.Tk):
             tree_row = row[1]
             accuracy = tree_row[5]
 
-            # Skip de-classed trees and trees with high score
+            # Skip de-classed trees.
             if tree_row[4] != self.class_name:
                 continue
 
-            # Add open pil-image to cache for loading
+            # Add open pil-image to cache for loading.
             if image_path not in pil_img_cache:
                 pil_img_cache[image_path] = Image.open(image_path)
 
             min_x, min_y, max_x, max_y = tree_row[0], tree_row[1], tree_row[2], tree_row[3]
 
+            # Image.
             main_pil_image = pil_img_cache[image_path]
             pil_img = main_pil_image.crop((min_x, min_y, max_x, max_y)).resize((self.img_size, self.img_size))
-
             img = ImageTk.PhotoImage(pil_img)
-
             img_frame = tk.Frame(self.buttons_frame)
-            img_frame.grid(row=row_index,
-                           column=column_index,
-                           sticky=tk.NSEW,
-                           padx=0,
-                           pady=10)
+            img_frame.grid(row=row_index, column=column_index, sticky=tk.NSEW, padx=0, pady=10)
 
+            # Button.
             button = tk.Button(img_frame,
                                relief=tk.RIDGE,
                                image=img,
                                width=self.img_size,
                                height=self.img_size,
                                command=lambda index=btn_count: self._remove_class(self.tree_list[index]))
-
             button.image = img
-            button.grid(row=0,
-                        column=0,
-                        sticky=tk.NSEW)
-
+            button.grid(row=0, column=0, sticky=tk.NSEW)
             text = tk.Label(master=img_frame, text=accuracy)
             text.grid(row=1)
 
-            img_button = tk.Button(img_frame,
-                                   text="Zoom out",
+            img_button = tk.Button(img_frame, text="Zoom out",
                                    command=lambda index=btn_count: self._zoom_out(self.tree_list[index]))
             img_button.grid(row=2)
+
             btn_list.append(img_button)
 
             column_index += 1
@@ -228,6 +230,7 @@ class TreeWindow(tk.Tk):
 
             total_trees += 1
 
+            # Rows with 8 trees.
             if column_index % 8 == 0:
                 column_index = 0
                 row_index += 1
@@ -236,8 +239,15 @@ class TreeWindow(tk.Tk):
                 break
 
     def _remove_class(self, tree):
+        """
+        Removes the class from a selected tree and simply labels it as a "tree".
+        Also updates the tree count in the window.
 
-        # ['img_path', [0, 392, 50, 479, 'Birch', 75.61432123184204]]
+        Format of tree: ['img_path', [0, 392, 50, 479, 'Birch', 75.61432123184204]]
+
+        @param tree: Selected tree to be labeled as "tree".
+        """
+
         tree[1][4] = "Tree"
 
         self.tree_list.remove(tree)
@@ -245,11 +255,12 @@ class TreeWindow(tk.Tk):
                                + self.class_name + " | Images left:"
                                + str(len(self.tree_list)))
 
-        # Close window when empty
+        # Close window when empty.
         if len(self.tree_list) == 0:
             self.destroy()
             return
 
-        for w in self.buttons_frame.winfo_children():
-            w.grid_forget()
+        for widget in self.buttons_frame.winfo_children():
+            widget.grid_forget()
+
         self._load_images()
