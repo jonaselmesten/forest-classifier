@@ -3,9 +3,8 @@ import os
 import eel
 
 from classifier.augmentation import extract_class_trees
-from files.csv import update_csv_file
+from files.csv import overwrite_csv_file, flip_img_csv
 from folders import tree_seg_train, gui
-from segmentation.image import flip_img_csv
 
 
 @eel.expose
@@ -19,7 +18,7 @@ def send_to_training(file, csv_data, train_both):
     csv_file = gui(file.split(sep=".")[0] + ".csv")
     csv_name = os.path.basename(csv_file)
 
-    update_csv_file(csv_file, csv_data)
+    overwrite_csv_file(csv_file, csv_data)
 
     if os.path.isfile(image_file) and os.path.isfile(csv_file):
 

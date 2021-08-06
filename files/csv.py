@@ -9,6 +9,12 @@ from folders import gui
 
 
 def save_csv_file(image_path, csv_save_folder, tree_list):
+    """
+    Saves the final prediction data of an image to a csv-file.
+    @param image_path: Image used for the prediction.
+    @param csv_save_folder: Save folder of the csv-file.
+    @param tree_list: The prediction data to be saved.
+    """
     file_name = os.path.basename(image_path)
     file_name_csv = file_name.split(sep=".")[0] + ".csv"
 
@@ -22,6 +28,11 @@ def save_csv_file(image_path, csv_save_folder, tree_list):
 
 
 def merge_csv_files(folder_path, file_name):
+    """
+    Merge csv-predictions-files into one single file.
+    @param folder_path: Path to csv-files.
+    @param file_name: File name of file containing the merged predictions.
+    """
     with open(os.path.join(folder_path, file_name + ".csv"), "w", newline="\n", encoding="utf-8") as save_file:
 
         for file in pathlib.Path(folder_path).glob("**/*.csv"):
@@ -31,13 +42,18 @@ def merge_csv_files(folder_path, file_name):
             if current_file == file_name:
                 continue
 
+            # Write each row to the save_file.
             with open(file, 'r') as csv_file:
-
                 for line in csv_file:
                     save_file.write(line)
 
 
-def update_csv_file(file_name, csv_data):
+def overwrite_csv_file(file_name, csv_data):
+    """
+    Open up a csv-file and overwrite everything with new data.
+    @param file_name: Name of the csv-file.
+    @param csv_data: Csv-data to be written.
+    """
     file_path = gui(file_name)
 
     with open(file_path, "w", newline="\n", encoding="utf-8")as csv_file:
@@ -50,35 +66,33 @@ def update_csv_file(file_name, csv_data):
 
 def flip_img_csv(image_path, csv_path, save_folder):
     """
-
-    @param image_path:
-    @param csv_path:
-    @param save_folder:
+    Takes an image and its csv-bounding box data and flips it to
+    create new images with matching csv-data.
+    @param image_path: Path to image to be flipped.
+    @param csv_path: Path to csv-file.
+    @param save_folder: Folder to save the images and the csv-data.
     """
-    # check both exist
-    # remove all if error
 
     org_img = Image.open(image_path)
     org_name = os.path.basename(image_path).split(sep=".")[0]
     width, height = org_img.size
-    tree_list = []
+    csv_data = []
 
-    # Read in original csv data
+    # Read in original csv data.
     with open(csv_path, "r", newline="\n", encoding="utf-8")as file:
         csv_reader = csv.reader(file)
 
         for row in csv_reader:
-            tree_list.append(row)
+            csv_data.append(row)
 
     for i in range(1, 4):
 
         file_path = os.path.join(save_folder, org_name + "_" + str(i))
 
-        # Make to one method
         with open(file_path + ".csv", "w", newline="\n", encoding="utf-8")as csv_file:
             csv_writer = csv.writer(csv_file, lineterminator='\n')
 
-            for row in tree_list:  # x min   y min   x max   y max
+            for row in csv_data:
 
                 x_min = int(row[1])
                 y_min = int(row[2])
@@ -87,7 +101,7 @@ def flip_img_csv(image_path, csv_path, save_folder):
                 bb_width = x_max - x_min
                 bb_height = y_max - y_min
 
-                # TODO: Move this to csv
+                # Flip the bounding box data.
                 if i == 1:
                     x_min = width - x_min - bb_width
                     x_max = x_min + bb_width

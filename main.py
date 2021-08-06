@@ -10,7 +10,7 @@ import eel
 
 # from classifier.tree_classifier import extract_class_trees, TreeClassifier
 from classifier.augmentation import extract_class_trees
-from files.csv import update_csv_file, save_csv_file
+from files.csv import overwrite_csv_file, save_csv_file
 from folders import gui, tree_seg_train, classifier, tree_seg_model
 from gui.menu import MainMenu
 from gui.window import TreeWindow
