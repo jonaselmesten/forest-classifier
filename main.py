@@ -14,7 +14,6 @@ from files.csv import overwrite_csv_file, save_csv_file
 from folders import gui, tree_seg_train, classifier, tree_seg_model
 from gui.menu import MainMenu
 from gui.window import TreeWindow
-from segmentation.image import flip_img_csv
 from segmentation.segment import TreePredictor
 
 
@@ -157,7 +156,7 @@ class Application:
 
         self.create_main_window()
 
-    def show_tree_class_prediction(self, tree_data, accuracy_threshold):
+    def show_tree_class_prediction(self, tree_data, accuracy_threshold=0.8):
         """
         Opens up a window for the user to remove trees that was wrongfully predicted.
         This makes the last modifications in the via.html-view easier and it helps with
