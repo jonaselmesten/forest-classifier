@@ -6,7 +6,7 @@ from PIL import Image
 from PIL.ExifTags import TAGS
 
 from files.csv import save_csv_file
-from folders import get_gui
+from folders import gui
 
 
 def get_gps_data(image_path, tag_id=34853) -> dict:

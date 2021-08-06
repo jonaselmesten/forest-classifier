@@ -11,7 +11,7 @@ import eel
 # from classifier.tree_classifier import extract_class_trees, TreeClassifier
 from classifier.augmentation import extract_class_trees
 from files.csv import update_csv_file, save_csv_file
-from folders import get_gui, get_tsmt, get_c, get_tsm
+from folders import gui, tree_seg_train, classifier, tree_seg_model
 from gui.menu import MainMenu
 from gui.window import TreeWindow
 from tree_segmentation.image import flip_img_csv
@@ -56,7 +56,7 @@ class Application:
         root.attributes("-topmost", True)
         selected_files = filedialog.askopenfilenames(parent=root)
         for file in selected_files:
-            copy2(file, get_gui())
+            copy2(file, gui())
 
     def get_remaining_time(self, time_taken, images_left):
         """
@@ -89,7 +89,7 @@ class Application:
 
         # Gather all images
         for ext in ("*.gif", "*.png", "*.jpg"):
-            images.extend(glob(os.path.join(get_gui(), ext)))
+            images.extend(glob(os.path.join(gui(), ext)))
 
         image_total = len(images)
         image_count = len(images)
@@ -199,7 +199,7 @@ class Application:
 
         # Save all prediction data as csv.
         for image_path, tree_list in tree_data.items():
-            save_csv_file(image_path, get_gui(), tree_list)
+            save_csv_file(image_path, gui(), tree_list)
 
     def open_annotation_window(self):
         eel.start("via.html", mode="mozilla")

@@ -2,7 +2,7 @@ import csv
 import os
 import pathlib
 
-from folders import get_gui
+from folders import gui
 
 
 def save_csv_file(image_path, csv_save_folder, tree_list):
@@ -35,7 +35,7 @@ def merge_csv_files(folder_path, file_name):
 
 
 def update_csv_file(file_name, csv_data):
-    file_path = get_gui(file_name)
+    file_path = gui(file_name)
 
     with open(file_path, "w", newline="\n", encoding="utf-8")as csv_file:
         csv_writer = csv.writer(csv_file, lineterminator='\n')

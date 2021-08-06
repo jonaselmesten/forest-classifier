@@ -14,7 +14,7 @@ from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
 
 from classifier.layers import Rescaling
-from folders import get_ct, get_c
+from folders import classifier_tree, classifier
 
 
 def test_accuracy(folder_path, class_name, classifier_obj):
@@ -70,7 +70,7 @@ class TreeClassifier:
     def __init__(self, saved_model=None):
         self.history = None
         self.rescale = Rescaling(1. / 255)
-        self.data_dir = get_ct()
+        self.data_dir = classifier_tree()
         self.data_dir = pathlib.Path(self.data_dir)
         self.classes = len(next(os.walk(self.data_dir))[1])
         self.batch_size = 200
@@ -206,7 +206,7 @@ class TreeClassifier:
         self.model = keras.models.load_model(model_path)
 
     def save_model(self):
-        self.model.save(filepath=get_c("ep_20_no_r.h5"))
+        self.model.save(filepath=classifier("ep_20_no_r.h5"))
 
 
 # Rescaling kan inte sparas i save model....
