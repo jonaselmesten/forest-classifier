@@ -1,7 +1,3 @@
-import csv
-import os
-
-import PIL
 from PIL import Image
 from PIL.ExifTags import TAGS
 
