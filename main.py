@@ -14,7 +14,7 @@ from files.csv import overwrite_csv_file, save_csv_file
 from folders import gui, tree_seg_train, classifier, tree_seg_model
 from gui.menu import MainWin
 from gui.window import TreeWin
-from segmentation.segment import TreePredictor
+from segmentation.segment import BoundingBoxPredictor
 
 
 class Application:
@@ -36,7 +36,7 @@ class Application:
         # classifier = TreeClassifier()
         # classifier.load_model(get_c("ep_20_no_r.h5"))
         classifier = None
-        predictor = TreePredictor()
+        predictor = BoundingBoxPredictor()
 
         return classifier, predictor
 

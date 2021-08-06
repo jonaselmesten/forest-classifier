@@ -2,17 +2,14 @@ import json
 import csv
 import os
 
-from segmentation.deepforest import get_data
 
-
-def read_and_parse_json(json_file: os.path, save_folder: os.path) -> os.path:
+def read_and_parse_json(json_file, save_folder):
     """
     Reads and parses a json-files to the correct format for training/evaluation.
     @param save_folder: Folder to save csv-files.
     @param json_file: Text files containing json.
     @return: Path to csv files - None if IO-error.
     """
-    json_file = get_data(json_file)
 
     file = open(json_file)
     json_dict = json.load(file)

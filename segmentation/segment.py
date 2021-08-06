@@ -3,18 +3,23 @@ from deepforest import main
 from matplotlib import pyplot as plt
 
 
-class TreePredictor:
+class BoundingBoxPredictor:
 
     def __init__(self):
         self.model = main.deepforest()
         self.model.use_release()
 
-    def predict_trees(self,
-                      image_path,
-                      score_threshold=0,
-                      tree_count_threshold=None,
-                      show_prediction=False) -> list:
+    def predict_trees(self, image_path, score_threshold=0, tree_count_threshold=None, show_prediction=False):
+        """
+        Will run a bounding box prediction on a given image.
+        Returns a list of images and the bounding box data.
 
+        @param image_path: Image to run prediction on.
+        @param score_threshold: Prediction accuracy threshold.
+        @param tree_count_threshold: Max tree count.
+        @param show_prediction: PIL-image list, bounding box data list.
+        @return:
+        """
         try:
 
             pil_img = Image.open(image_path)
@@ -58,6 +63,6 @@ class TreePredictor:
 
         except IOError as e:
             print(e)
-            return
+            return None
         else:
             return img_list, coordinate_list
