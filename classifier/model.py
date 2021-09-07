@@ -17,57 +17,10 @@ from classifier.layers import Rescaling
 from folders import classifier_tree, classifier
 
 
-def test_accuracy(folder_path, class_name, classifier_obj):
-    trees = [os.path.join(r, file) for r, d, f in os.walk(folder_path) for file in f]
-
-    tree_count = len(trees)
-    error_count = 0
-    under_80_count = 0
-    under_70_count = 0
-    under_60_count = 0
-    under_50_count = 0
-    lowest_acc = 100.0
-
-    print("Classifying ", len(trees), " trees...")
-    print("Class:", class_name)
-
-    start_time = timeit.default_timer()
-
-    for tree in trees:
-        predicted_class, accuracy = classifier_obj.classify_single_tree(tree)
-
-        if accuracy < lowest_acc:
-            lowest_acc = accuracy
-
-        if accuracy < 80.0:
-            under_80_count += 1
-        if accuracy < 70.0:
-            under_70_count += 1
-        if accuracy < 60.0:
-            under_60_count += 1
-        if accuracy < 50.0:
-            under_50_count += 1
-
-        if predicted_class.lower() != class_name.lower():
-            error_count += 1
-
-    elapsed = timeit.default_timer() - start_time
-    print("Took {time} seconds to classify each tree.".format(time=elapsed / len(trees)))
-    print("Took {time} seconds to classify all trees.".format(time=elapsed))
-    print("--------------------------")
-    print("Lowest accuracy:", lowest_acc)
-    print("Trees under 80.0 accuracy:", under_80_count)
-    print("Trees under 70.0 accuracy:", under_70_count)
-    print("Trees under 60.0 accuracy:", under_60_count)
-    print("Trees under 50.0 accuracy:", under_50_count)
-    print(error_count, " out of ", tree_count, " was predicted wrong.")
-    print("--------------------------")
-
-
 class TreeClassifier:
 
-    # TODO: Add config files and reader just like in deepforest.
     def __init__(self, saved_model=None):
+
         self.history = None
         self.rescale = Rescaling(1. / 255)
         self.data_dir = classifier_tree()
@@ -75,12 +28,11 @@ class TreeClassifier:
         self.classes = len(next(os.walk(self.data_dir))[1])
         self.batch_size = 200
         self.img_size = (250, 250)
-        self.class_names = ["Birch", "Spruce"]
+        self.class_names = ["Birch", "Spruce", "Pine"]
+
         print("Initializing tree classifier...")
         print("Classes:", self.class_names)
 
-        # Sequential models without an `input_shape`
-        # passed to the first layer cannot reload their optimizer state.
         self.model = Sequential([
             layers.Conv2D(16, 3, padding='same', activation='relu', input_shape=(250, 250, 3)),
             layers.MaxPooling2D(),
@@ -101,9 +53,8 @@ class TreeClassifier:
         if saved_model is not None:
             self.load_model(saved_model)
 
-    def train(self):
+    def train(self, epochs):
 
-        epochs = 10
         print("Starting training loop...")
 
         generator = ImageDataGenerator(
@@ -172,8 +123,13 @@ class TreeClassifier:
         return img_array
 
     def classify_batch_of_trees(self, img_list, batch_size=400, score_threshold=0.70):
-
-        # TODO: Raise EXC when img and batch size is different
+        """
+        Performs batch inference on images.
+        @param img_list: List of images.
+        @param batch_size: Size of each batch.
+        @param score_threshold: Threshold.
+        @return: List with predicted class and score.
+        """
         batch_holder = np.zeros((batch_size, 250, 250, 3))
         result_list = []
 
@@ -181,10 +137,6 @@ class TreeClassifier:
         for index, tree_img in enumerate(img_list):
             tree_tensor = self.preprocess_img(tree_img)
             batch_holder[index] = tree_tensor
-
-        # print("Type:", type(img_list[0]))
-        # print("Batch holder size:", len(batch_holder))
-        # print("Img holder size:", len(img_list))
 
         start = time.perf_counter()
         predictions = self.model.predict_on_batch(batch_holder)
@@ -208,13 +160,3 @@ class TreeClassifier:
     def save_model(self):
         self.model.save(filepath=classifier("ep_20_no_r.h5"))
 
-
-# Rescaling kan inte sparas i save model....
-#classifier = TreeClassifier()
-#classifier.load_model(get_c("ep_20_no_r.h5"))
-
-# classifier.train()
-# classifier.plot_history()
-# classifier.save_model()
-
-# test_accuracy(get_ct("test"), "spruce", tc)
